@@ -92,28 +92,38 @@ public class CoffeeMachine {
     }
 
     public static void controlMenu(CoffeeMachine machine) {
-        System.out.println(machine);
-        String command = buyFillOrTakeReq();
-        System.out.println("> " + command);
-
-        arbiter(command, machine);
-
+        String command;
+        boolean shallContinue = true;
+        do {
+            command = buyFillOrTakeReq();
+            if (command.equalsIgnoreCase("exit")) {
+                shallContinue = false;
+            }
+            System.out.println("> " + command);
+            machine = arbiter(command, machine);
+        } while (shallContinue);
     }
 
     private static String buyFillOrTakeReq() {
-        System.out.println("Write action (buy, fill, take): ");
+        System.out.println("Write action (buy, fill, take, remaining, exit): ");
         return requestCommand();
     }
 
     private static CoffeeMachine arbiter(String command, CoffeeMachine machine) {
-        CoffeeMachine coffeeMachine = null;
+        CoffeeMachine coffeeMachine = machine;
         switch (command) {
             case ("buy"):
                 System.out.println("What do you want to buy? 1 - espresso, 2 - latte, 3 - cappuccino: ");
-                int choice = reqInputNumberFromUser();
+                int choice;
+                if (scanner.hasNextInt()) {
+                    choice = reqInputNumberFromUser();
+                } else {
+                    return coffeeMachine;
+                }
                 System.out.println("> " + choice);
-                coffeeMachine = calcConsmptnOfOneCup(choice, machine);
-                System.out.println(coffeeMachine);
+                coffeeMachine = calcConsmptnOfOneCup(choice, coffeeMachine);
+                System.out.println();
+//                System.out.println(coffeeMachine);
                 return coffeeMachine;
             case ("fill"):
                 System.out.println("Write how many ml of water you want to add: ");
@@ -135,16 +145,27 @@ public class CoffeeMachine {
                         .beans(machine.getBeans() + beans)
                         .cups(machine.getCups() + cups)
                         .build();
-                System.out.println(coffeeMachine);
+                System.out.println();
+//                System.out.println(coffeeMachine);
                 return coffeeMachine;
             case ("take"):
                 System.out.println("I gave you $" + machine.getMoney());
-                coffeeMachine = new Builder().money(0).build();
+                coffeeMachine = new Builder()
+                        .water(coffeeMachine.getWater())
+                        .milk(coffeeMachine.getMilk())
+                        .beans(coffeeMachine.getBeans())
+                        .cups(coffeeMachine.getCups())
+                        .money(0)
+                        .build();
+                System.out.println();
+//                System.out.println(coffeeMachine);
+                return coffeeMachine;
+            case ("remaining"):
                 System.out.println();
                 System.out.println(coffeeMachine);
                 return coffeeMachine;
             default:
-                return machine;
+                return coffeeMachine;
         }
     }
 
@@ -164,7 +185,7 @@ public class CoffeeMachine {
 
     public static String requestCommand() {
 
-        String[] options = {"buy", "fill", "take"};
+        String[] options = {"buy", "fill", "take", "remaining", "exit"};
         String input;
 
         boolean shallContinue = true;
@@ -201,6 +222,67 @@ public class CoffeeMachine {
         System.out.println(grCoffeeBans + " g of coffee beans");
     }
 
+    private static boolean validateAvailability(int coffeeType, CoffeeMachine machine, Portion portion) {
+        boolean shallContinue = true;
+        switch (coffeeType) {
+            case (1):
+                if (machine.getWater() < portion.getWater()
+                        && machine.getBeans() < portion.getBeans()) {
+                    System.out.println("Sorry, not enough water and beans!");
+                    shallContinue = false;
+                    break;
+                } else if (machine.getWater() < portion.getWater()
+                        && machine.getBeans() >= portion.getBeans()) {
+                    System.out.println("Sorry, not enough water!");
+                    shallContinue = false;
+                    break;
+                } else if (machine.getBeans() < portion.getBeans()
+                        && machine.getWater() >= portion.getWater()) {
+                    System.out.println("Sorry, not enough beans!");
+                    shallContinue = false;
+                    break;
+                } else {
+                    System.out.println("I have enough resources, making you a coffee!");
+                    break;
+                }
+            case (2):
+            case (3):
+                //не хватает всех ресурсов
+                if (machine.getWater() < portion.getWater()
+                        && machine.getMilk() < portion.getMilk()
+                        && machine.getBeans() < portion.getBeans()) {
+                    System.out.println("Sorry, not enough water, milk and beans!");
+                    shallContinue = false;
+                    break;
+                    //не хватает воды
+                } else if (machine.getWater() < portion.getWater()
+                        /*&& machine.getMilk() >= portion.getMilk()
+                        && machine.getBeans() >= portion.getBeans()*/) {
+                    System.out.println("Sorry, not enough water!");
+                    shallContinue = false;
+                    break;
+                    //не зватает зерен
+                } else if (machine.getBeans() < portion.getBeans()
+                        /*&& machine.getMilk() >= portion.getMilk()
+                        && machine.getWater() >= portion.getWater()*/) {
+                    System.out.println("Sorry, not enough beans!");
+                    shallContinue = false;
+                    break;
+                    //не хватает молока
+                } else if (machine.getMilk() < portion.getMilk()
+                        /*&& machine.getBeans() >= portion.getBeans()
+                        && machine.getWater() >= portion.getWater()*/) {
+                    System.out.println("Sorry, not enough milk!");
+                    shallContinue = false;
+                    break;
+                } else {
+                    System.out.println("I have enough resources, making you a coffee!");
+                    break;
+                }
+        }
+        return shallContinue;
+    }
+
     public static CoffeeMachine calcConsmptnOfOneCup(int coffeeType, CoffeeMachine coffeeMachine) {
 
         CoffeeMachine machine;
@@ -213,6 +295,9 @@ public class CoffeeMachine {
              It costs $4.*/
             case (1):
                 EspressoPortion espresso = new EspressoPortion();
+                if (!validateAvailability(1, coffeeMachine, espresso)) {
+                    return coffeeMachine;
+                }
                 machine = new CoffeeMachine.Builder()
                         .water(coffeeMachine.getWater() - espresso.getWater())
                         .beans(coffeeMachine.getBeans() - espresso.getBeans())
@@ -229,6 +314,9 @@ public class CoffeeMachine {
              * costs $7.*/
             case (2):
                 LattePortion latte = new LattePortion();
+                if (!validateAvailability(2, coffeeMachine, latte)) {
+                    return coffeeMachine;
+                }
                 machine = new CoffeeMachine.Builder()
                         .water((coffeeMachine.getWater()) - (latte.getWater()))
                         .beans(coffeeMachine.getBeans() - latte.getBeans())
@@ -245,6 +333,9 @@ public class CoffeeMachine {
              * It costs $6.*/
             case (3):
                 CappuccinoPortion cappuccino = new CappuccinoPortion();
+                if (!validateAvailability(3, coffeeMachine, cappuccino)) {
+                    return coffeeMachine;
+                }
                 machine = new CoffeeMachine.Builder()
                         .water(coffeeMachine.getWater() - cappuccino.getWater())
                         .beans(coffeeMachine.getBeans() - cappuccino.getBeans())
